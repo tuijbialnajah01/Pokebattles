@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Matchmaking from './pages/Matchmaking';
 import Game from './pages/Game';
 import Shop from './pages/Shop';
+import Inventory from './pages/Inventory';
 import Upgrades from './pages/Upgrades';
 import Invest from './pages/Invest';
 import Login from './pages/Login';
@@ -115,6 +116,7 @@ export default function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/" element={<Home />} />
       <Route path="/shop" element={<Shop />} />
+      <Route path="/inventory" element={<Inventory />} />
       <Route path="/upgrades" element={<Upgrades />} />
       <Route path="/invest" element={<Invest />} />
       <Route path="/matchmaking" element={<Matchmaking />} />

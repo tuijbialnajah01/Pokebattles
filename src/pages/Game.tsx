@@ -18,6 +18,7 @@ interface Player {
   attackTimer?: number;
   type: string;
   spriteUrl: string;
+  level: number;
 }
 
 interface Projectile {
@@ -40,6 +41,25 @@ const TYPE_COLORS: Record<string, string> = {
   steel: '#B7B7CE', fairy: '#D685AD',
 };
 
+const StatBar = ({label, value, max, color}: {label: string, value: number, max: number, color: string}) => {
+  const [loaded, setLoaded] = React.useState(false);
+  React.useEffect(() => {
+    const t = setTimeout(() => setLoaded(true), 100);
+    return () => clearTimeout(t);
+  }, []);
+  
+  const pct = loaded ? Math.min(100, Math.max(0, (value/(max * 1.05)) * 100)) : 0;
+  return (
+    <div className="flex items-center gap-3 w-full">
+      <span className="w-8 text-[10px] font-black text-zinc-400">{label}</span>
+      <div className="flex-1 bg-zinc-950 h-3 rounded-full overflow-hidden border border-zinc-900 drop-shadow-sm">
+        <div className={`h-full ${color} rounded-full`} style={{width: `${pct}%`, transition: 'width 1.5s cubic-bezier(0.16, 1, 0.3, 1)'}}></div>
+      </div>
+      <span className="w-8 text-left text-xs font-bold text-white">{Math.floor(value)}</span>
+    </div>
+  )
+}
+
 export default function Game() {
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,6 +69,15 @@ export default function Game() {
   const [gameOver, setGameOver] = useState<{ isWin: boolean, coins: number, exp: number, levelUp: boolean } | null>(null);
   const [myMoves, setMyMoves] = useState<{name: string, isProjectile: boolean, power: number, type: string}[]>([]);
   const [moveCooldowns, setMoveCooldowns] = useState<number[]>([0,0,0,0]);
+  
+  const [showVsScreen, setShowVsScreen] = useState(true);
+  const [playerStats, setPlayerStats] = useState<any>(null);
+  const [oppStats, setOppStats] = useState<any>(null);
+  const gameStarted = useRef(false);
+  
+  const [showCatchUI, setShowCatchUI] = useState(false);
+  const [catchResult, setCatchResult] = useState<'success' | 'failed' | null>(null);
+  const [pokeballsCount, setPokeballsCount] = useState(0);
   
   // Game state
   const gameState = useRef<Record<string, Player>>({});
@@ -88,11 +117,11 @@ export default function Game() {
       try {
         const myIdLocal = localStorage.getItem('game_pokemon_id') || '4';
         const oppIdLocal = localStorage.getItem('game_opponent_id') || '1';
-        const speedLevel = parseInt(localStorage.getItem('game_speed_level') || '0', 10);
-        const attackLevel = parseInt(localStorage.getItem('game_attack_level') || '0', 10);
-        const healthLevel = parseInt(localStorage.getItem('game_health_level') || '0', 10);
-        const defenseLevel = parseInt(localStorage.getItem('game_defense_level') || '0', 10);
+        const myLevel = Math.max(1, Math.floor(parseInt(localStorage.getItem('game_exp') || '0', 10) / 1000) + 1);
+        const oppLevel = Math.max(1, myLevel + Math.floor(Math.random() * 3) - 1);
         const nicknameLocal = localStorage.getItem('game_nickname') || 'Trainer';
+        
+        setPokeballsCount(parseInt(localStorage.getItem('game_pokeballs_count') || '0', 10));
         
         const [myRes, oppRes] = await Promise.all([
             fetch(`https://pokeapi.co/api/v2/pokemon/${myIdLocal}`),
@@ -123,39 +152,82 @@ export default function Game() {
         
         setMyMoves(extractMoves(myData));
         
-        const getStat = (data: any, name: string) => data.stats.find((s:any) => s.stat.name===name)?.base_stat || 50;
+        const getBaseStat = (data: any, name: string) => data.stats.find((s:any) => s.stat.name===name)?.base_stat || 50;
+        const calcStat = (base: number, level: number) => Math.floor(((2 * base + 31) * level) / 100) + 5;
+        const calcHp = (base: number, level: number) => Math.floor(((2 * base + 31) * level) / 100) + level + 10;
         
-        const myHpBase = getStat(myData, 'hp') * 3;
-        const myHp = myHpBase + (healthLevel * 50); // 50 HP per level
-        const oppHp = getStat(oppData, 'hp') * 3;
+        // Multiplier to make it a bit more action-oriented and not end instantly
+        const hpMultiplier = 5; 
         
+        const myHp = calcHp(getBaseStat(myData, 'hp'), myLevel) * hpMultiplier;
+        const oppHp = calcHp(getBaseStat(oppData, 'hp'), oppLevel) * hpMultiplier;
+        
+        // Game speed needs to be higher so gameplay feels smooth
+        const mySpeed = 200 + calcStat(getBaseStat(myData, 'speed'), myLevel) * 3; 
+        const oppSpeed = 150 + calcStat(getBaseStat(oppData, 'speed'), oppLevel) * 3;
+
+        const myAttack = calcStat(getBaseStat(myData, 'attack'), myLevel);
+        const myDefense = calcStat(getBaseStat(myData, 'defense'), myLevel);
+        const oppAttack = calcStat(getBaseStat(oppData, 'attack'), oppLevel);
+        const oppDefense = calcStat(getBaseStat(oppData, 'defense'), oppLevel);
+
         gameState.current[myId.current] = {
             id: myId.current,
             x: 200, y: 400,
             health: myHp, maxHealth: myHp,
-            speed: getStat(myData, 'speed') * 1.5 + 50 + (speedLevel * 20),
-            attack: getStat(myData, 'attack') + (attackLevel * 10), // 10 attack per level
-            defense: getStat(myData, 'defense') + (defenseLevel * 10), // 10 defense per level
+            speed: mySpeed,
+            attack: myAttack,
+            defense: myDefense,
             nickname: myData.name.toUpperCase(),
             direction: 'up',
             isAttacking: false,
             type: myData.types[0].type.name,
-            spriteUrl: myData.sprites?.other?.['official-artwork']?.front_default || myData.sprites?.front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${myIdLocal}.png`
+            spriteUrl: myData.sprites?.other?.['official-artwork']?.front_default || myData.sprites?.front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${myIdLocal}.png`,
+            level: myLevel
         };
         
         gameState.current['bot_match'] = {
             id: 'bot_match',
             x: 200, y: 100,
             health: oppHp, maxHealth: oppHp,
-            speed: getStat(oppData, 'speed') * 1.5 + 50,
-            attack: getStat(oppData, 'attack'),
-            defense: getStat(oppData, 'defense'),
+            speed: oppSpeed,
+            attack: oppAttack,
+            defense: oppDefense,
             nickname: oppData.name.toUpperCase(),
             direction: 'down',
             isAttacking: false,
             type: oppData.types[0].type.name,
-            spriteUrl: oppData.sprites?.other?.['official-artwork']?.front_default || oppData.sprites?.front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${oppIdLocal}.png`
+            spriteUrl: oppData.sprites?.other?.['official-artwork']?.front_default || oppData.sprites?.front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${oppIdLocal}.png`,
+            level: oppLevel
         };
+        
+        setPlayerStats({
+            nickname: myData.name.toUpperCase(),
+            type: myData.types[0].type.name,
+            spriteUrl: gameState.current[myId.current].spriteUrl,
+            hp: myHp,
+            attack: myAttack,
+            defense: myDefense,
+            speed: mySpeed,
+            level: myLevel
+        });
+
+        setOppStats({
+            nickname: oppData.name.toUpperCase(),
+            type: oppData.types[0].type.name,
+            spriteUrl: gameState.current['bot_match'].spriteUrl,
+            hp: oppHp,
+            attack: oppAttack,
+            defense: oppDefense,
+            speed: oppSpeed,
+            level: oppLevel
+        });
+
+        setTimeout(() => {
+          if (!isMounted) return;
+          setShowVsScreen(false);
+          gameStarted.current = true;
+        }, 4000);
         
         setStatus('BATTLE!');
       } catch(e) {
@@ -165,7 +237,7 @@ export default function Game() {
     initGame();
 
     const calculateDamage = (attacker: Player, defender: Player, power: number) => {
-        const damage = ((2 * 50 / 5 + 2) * power * (attacker.attack / defender.defense)) / 50 + 2;
+        const damage = ((2 * attacker.level / 5 + 2) * power * (attacker.attack / defender.defense)) / 50 + 2;
         return Math.floor(damage * (Math.random() * 0.15 + 0.85)); // 85-100% modifier
     };
 
@@ -188,11 +260,16 @@ export default function Game() {
         localStorage.setItem('game_coins', (currentCoins + earnedCoins).toString());
         localStorage.setItem('game_exp', (currentExp + earnedExp).toString());
         
+        if (isWin) {
+            setShowCatchUI(true);
+        }
+        
         setGameOver({ isWin, coins: earnedCoins, exp: earnedExp, levelUp });
     };
 
     const draw = (time: number) => {
-      const dt = (time - lastTime) / 1000;
+      let dt = (time - lastTime) / 1000;
+      if (dt > 0.05) dt = 0.016; // Cap dt to prevent huge teleport jumps (e.g. from alt-tabbing)
       lastTime = time;
 
       const canvas = canvasRef.current;
@@ -204,6 +281,12 @@ export default function Game() {
       const ch = canvas.height;
 
       const midY = ch / 2;
+      
+      if (!gameStarted.current) {
+        lastTime = time;
+        animationFrameId = requestAnimationFrame(draw);
+        return;
+      }
 
       // Update local player
       const me = gameState.current[myId.current];
@@ -665,6 +748,30 @@ export default function Game() {
       }
     };
 
+  const handleCatch = () => {
+    if (pokeballsCount <= 0) return;
+    const newCount = pokeballsCount - 1;
+    setPokeballsCount(newCount);
+    localStorage.setItem('game_pokeballs_count', newCount.toString());
+    
+    // Attempt catch
+    playSound('select');
+    setCatchResult('success'); // 100% catch rate for now as requested feeling
+    
+    const oppIdLocal = localStorage.getItem('game_opponent_id') || '1';
+    try {
+        const unlocked = JSON.parse(localStorage.getItem('game_unlocked') || '[4]');
+        if (!unlocked.includes(parseInt(oppIdLocal))) {
+            unlocked.push(parseInt(oppIdLocal));
+            localStorage.setItem('game_unlocked', JSON.stringify(unlocked));
+        }
+    } catch(e) {}
+    
+    setTimeout(() => {
+       setShowCatchUI(false);
+    }, 4000);
+  };
+
   return (
     <div className="bg-black min-h-screen flex flex-col font-mono text-white overflow-hidden fixed inset-0">
       <div className="absolute top-0 inset-x-0 p-4 flex justify-between items-start z-50 pointer-events-none">
@@ -737,6 +844,115 @@ export default function Game() {
                 Back to Home
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Catch UI Overlay */}
+      {showCatchUI && gameOver && gameOver.isWin && (
+        <div className="absolute inset-0 z-[150] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in zoom-in-95 duration-500">
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[80%] flex flex-col items-center">
+              {/* Opponent Sprite */}
+              <img 
+                 src={oppStats?.spriteUrl || ''} 
+                 className={`w-48 h-48 drop-shadow-[0_0_20px_rgba(255,100,100,0.5)] transition-all duration-1000 ${catchResult === 'success' ? 'scale-0 opacity-0 rotate-180' : 'scale-100 opacity-100'}`} 
+                 alt="Wild Pokemon" 
+              />
+              
+              {/* Pokeball throwing anim */}
+              {catchResult === 'success' && (
+                 <div className="absolute bottom-0 w-16 h-16 rounded-full border-4 border-zinc-900 bg-white relative overflow-hidden shadow-lg animate-in zoom-in spin-in shadow-[0_0_50px_rgba(255,0,0,0.8)] duration-500">
+                    <div className="absolute top-0 left-0 right-0 h-1/2 bg-red-500 border-b-4 border-zinc-900"></div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-4 border-zinc-900 z-10 animate-pulse"></div>
+                 </div>
+              )}
+           </div>
+
+           <div className="mt-48 text-center space-y-6 max-w-sm w-full relative z-10">
+              {catchResult === 'success' ? (
+                 <h2 className="text-3xl font-black uppercase text-green-400 drop-shadow-md animate-bounce">Gotcha!</h2>
+              ) : (
+                 <>
+                   <h2 className="text-2xl font-black uppercase tracking-wide">Wild {oppStats?.nickname || 'Pokemon'} fainted!</h2>
+                   <p className="text-zinc-400 text-sm">Should we try to catch it?</p>
+                   
+                   <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3 shadow-lg">
+                      <div className="flex justify-between items-center px-2">
+                         <span className="text-zinc-500 uppercase text-xs font-bold">Your Pokeballs</span>
+                         <span className="text-white font-black">x{pokeballsCount}</span>
+                      </div>
+                      
+                      <button 
+                        onClick={handleCatch}
+                        disabled={pokeballsCount <= 0}
+                        className={`w-full py-4 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${pokeballsCount > 0 ? 'bg-red-600 hover:bg-red-500 shadow-[0_0_20px_rgba(220,38,38,0.4)] text-white' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}`}
+                      >
+                         Throw Pokeball
+                      </button>
+                      
+                      <button 
+                         onClick={() => setShowCatchUI(false)}
+                         className="w-full py-3 rounded-xl border border-zinc-700 bg-zinc-950 text-zinc-400 font-bold uppercase tracking-wide hover:bg-zinc-800 text-sm"
+                      >
+                         Leave it
+                      </button>
+                   </div>
+                 </>
+              )}
+           </div>
+        </div>
+      )}
+      
+      {/* Vs Screen Overlay */}
+      {showVsScreen && playerStats && oppStats && (
+        <div className="absolute inset-0 z-[200] bg-black flex overflow-hidden lg:flex-row flex-col">
+          {/* Split background */}
+          <div className="absolute inset-y-0 left-0 w-full lg:w-1/2 h-1/2 lg:h-full bg-blue-900/20 lg:border-r-2 border-b-2 lg:border-b-0 border-blue-500/30 animate-in slide-in-from-top lg:slide-in-from-left duration-700"></div>
+          <div className="absolute inset-y-0 bottom-0 lg:right-0 w-full lg:w-1/2 h-1/2 lg:h-full bg-red-900/20 lg:border-l-2 border-t-2 lg:border-t-0 border-red-500/30 mt-auto lg:mt-0 animate-in slide-in-from-bottom lg:slide-in-from-right duration-700"></div>
+          
+          {/* VS graphic */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-24 h-24 md:w-32 md:h-32 bg-black rounded-full border-[6px] border-zinc-800 flex items-center justify-center animate-in zoom-in spin-in-180 duration-1000 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+             <span className="text-4xl md:text-5xl font-black italic text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">VS</span>
+          </div>
+
+          <div className="relative w-full h-full flex flex-col lg:flex-row z-20 pointer-events-none">
+             <div className="flex-1 w-full lg:w-1/2 h-1/2 lg:h-full flex flex-col justify-center items-center p-4 lg:p-8 animate-in slide-in-from-top lg:slide-in-from-left fade-in duration-1000 delay-300 fill-mode-both">
+               <img src={playerStats.spriteUrl} className="w-32 h-32 md:w-48 md:h-48 drop-shadow-[0_0_20px_rgba(59,130,246,0.6)] animate-pulse" style={{ animationDuration: '3s' }} alt="Player" />
+               <h2 className="text-2xl md:text-3xl font-black mt-2 uppercase text-blue-400 drop-shadow-md text-center">{playerStats.nickname}</h2>
+               <div className="flex gap-2 text-[10px] md:text-xs font-bold uppercase tracking-widest text-zinc-400 mt-1 mb-4">
+                 <span className="bg-zinc-900 border border-zinc-800 px-2 py-1 rounded">Lv. {playerStats.level}</span>
+                 <span className="bg-zinc-900 border border-zinc-800 px-2 py-1 rounded" style={{color: TYPE_COLORS[playerStats.type]}}>{playerStats.type}</span>
+               </div>
+               
+               {/* Stats */}
+               <div className="w-full max-w-[200px] md:max-w-xs space-y-2">
+                  <StatBar label="HP" value={playerStats.hp} max={Math.max(playerStats.hp, oppStats.hp)} color="bg-emerald-500" />
+                  <StatBar label="ATK" value={playerStats.attack} max={Math.max(playerStats.attack, oppStats.attack)} color="bg-red-500" />
+                  <StatBar label="DEF" value={playerStats.defense} max={Math.max(playerStats.defense, oppStats.defense)} color="bg-blue-500" />
+                  <StatBar label="SPD" value={playerStats.speed} max={Math.max(playerStats.speed, oppStats.speed)} color="bg-yellow-500" />
+               </div>
+             </div>
+
+             <div className="flex-1 w-full lg:w-1/2 h-1/2 lg:h-full flex flex-col justify-center items-center p-4 lg:p-8 animate-in slide-in-from-bottom lg:slide-in-from-right fade-in duration-1000 delay-300 fill-mode-both">
+               <img src={oppStats.spriteUrl} className="w-32 h-32 md:w-48 md:h-48 drop-shadow-[0_0_20px_rgba(239,68,68,0.6)] animate-pulse" style={{ animationDuration: '3s', animationDelay: '1s' }} alt="Opponent" />
+               <h2 className="text-2xl md:text-3xl font-black mt-2 uppercase text-red-500 drop-shadow-md text-center">{oppStats.nickname}</h2>
+               <div className="flex gap-2 text-[10px] md:text-xs font-bold uppercase tracking-widest text-zinc-400 mt-1 mb-4">
+                 <span className="bg-zinc-900 border border-zinc-800 px-2 py-1 rounded">Lv. {oppStats.level}</span>
+                 <span className="bg-zinc-900 border border-zinc-800 px-2 py-1 rounded" style={{color: TYPE_COLORS[oppStats.type]}}>{oppStats.type}</span>
+               </div>
+               
+               {/* Stats */}
+               <div className="w-full max-w-[200px] md:max-w-xs space-y-2">
+                  <StatBar label="HP" value={oppStats.hp} max={Math.max(playerStats.hp, oppStats.hp)} color="bg-emerald-500" />
+                  <StatBar label="ATK" value={oppStats.attack} max={Math.max(playerStats.attack, oppStats.attack)} color="bg-red-500" />
+                  <StatBar label="DEF" value={oppStats.defense} max={Math.max(playerStats.defense, oppStats.defense)} color="bg-blue-500" />
+                  <StatBar label="SPD" value={oppStats.speed} max={Math.max(playerStats.speed, oppStats.speed)} color="bg-yellow-500" />
+               </div>
+             </div>
+          </div>
+          
+          <div className="absolute bottom-6 inset-x-0 text-center animate-pulse z-30">
+            <span className="bg-black/50 px-4 py-2 rounded-full text-zinc-400 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs border border-zinc-800">Battle begins soon...</span>
           </div>
         </div>
       )}

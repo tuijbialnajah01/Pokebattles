@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "PBG Dredd",
+  "description": "A Pokémon-like battling and idle coin clicking game.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

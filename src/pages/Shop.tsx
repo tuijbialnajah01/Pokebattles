@@ -20,6 +20,7 @@ export default function Shop() {
   const [coins, setCoins] = useState(0);
   const [unlocked, setUnlocked] = useState<number[]>([4]);
   const [selectedId, setSelectedId] = useState<number>(4);
+  const [pokeballs, setPokeballs] = useState<number>(0);
 
   useEffect(() => {
     const updateCoins = () => {
@@ -38,6 +39,9 @@ export default function Shop() {
 
     const currentSelection = parseInt(localStorage.getItem('game_pokemon_id') || '4', 10);
     setSelectedId(currentSelection);
+    
+    const count = parseInt(localStorage.getItem('game_pokeballs_count') || '0', 10);
+    setPokeballs(count);
     
     return () => window.removeEventListener('coins_updated', updateCoins);
   }, []);
@@ -64,6 +68,17 @@ export default function Shop() {
       }
   };
 
+  const handleBuyPokeball = () => {
+    if (coins >= 50) {
+      const newCoins = coins - 50;
+      const newBalls = pokeballs + 1;
+      setCoins(newCoins);
+      setPokeballs(newBalls);
+      localStorage.setItem('game_coins', newCoins.toString());
+      localStorage.setItem('game_pokeballs_count', newBalls.toString());
+    }
+  };
+
   return (
     <div className="bg-zinc-950 min-h-screen font-mono text-zinc-100 pb-12">
       {/* Header */}
@@ -81,7 +96,34 @@ export default function Shop() {
       </div>
 
       <div className="max-w-4xl mx-auto px-6 mt-8">
-         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        
+         <div className="mb-12">
+            <h2 className="text-lg font-bold uppercase tracking-widest text-zinc-500 mb-4 px-2">Items</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-zinc-900 rounded-2xl border-2 border-zinc-800 p-4 flex flex-col items-center gap-4">
+                     <div className="w-24 h-24 bg-zinc-800 rounded-full flex items-center justify-center relative overflow-hidden group shadow-inner">
+                        {/* CSS Pokeball */}
+                        <div className="w-16 h-16 rounded-full border-4 border-zinc-900 bg-white relative overflow-hidden shadow-md">
+                            <div className="absolute top-0 left-0 right-0 h-1/2 bg-red-500 border-b-4 border-zinc-900"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full border-4 border-zinc-900 z-10"></div>
+                        </div>
+                     </div>
+                     <div className="text-center w-full">
+                        <div className="font-bold text-sm uppercase tracking-wide mb-1 flex items-center justify-center gap-2">Pokéball <span className="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-[10px]">x{pokeballs}</span></div>
+                        <button
+                          onClick={handleBuyPokeball}
+                          disabled={coins < 50}
+                          className={`w-full py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${coins >= 50 ? 'bg-yellow-500 text-black hover:bg-yellow-400' : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'}`}
+                        >
+                            {coins >= 50 ? <><Coins size={14} /> 50</> : <><Lock size={14} /> 50</>}
+                        </button>
+                     </div>
+                </div>
+            </div>
+         </div>
+
+         <h2 className="text-lg font-bold uppercase tracking-widest text-zinc-500 mb-4 px-2">Pokémon</h2>
+         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-20">
              {SHOP_ITEMS.map((item) => {
                  const isUnlocked = unlocked.includes(item.id);
                  const isSelected = selectedId === item.id;
