@@ -10,7 +10,7 @@ export default function Invest() {
 
   useEffect(() => {
     const updateCoins = () => {
-       setCoins(parseInt(localStorage.getItem('game_coins') || '0', 10));
+       setCoins(parseFloat(localStorage.getItem('game_coins') || '0'));
     };
     updateCoins();
     window.addEventListener('coins_updated', updateCoins);
@@ -25,7 +25,7 @@ export default function Invest() {
 
   // cost = 100 * (1.5 ^ level) or similar
   const cost = 100 + investLevel * 150 + Math.floor(Math.pow(1.2, investLevel) * 10);
-  const currentRate = investLevel;
+  const currentRate = investLevel * 60; // 60 coins per hour per level
 
   const handleInvest = () => {
     if (investLevel < MAX_LEVEL && coins >= cost) {
@@ -35,9 +35,11 @@ export default function Invest() {
       setCoins(newCoins);
       setInvestLevel(newLevel);
       
+      const newRate = newLevel * 60;
+
       localStorage.setItem('game_coins', newCoins.toString());
       localStorage.setItem('game_invest_level', newLevel.toString());
-      localStorage.setItem('game_passive_rate', newLevel.toString());
+      localStorage.setItem('game_passive_rate', newRate.toString());
     }
   };
 
@@ -53,7 +55,7 @@ export default function Invest() {
         </div>
         <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 flex items-center gap-2 shadow-inner">
            <Coins size={16} className="text-yellow-400" />
-           <span className="text-white font-bold">{coins}</span>
+           <span className="text-white font-bold">{Math.floor(coins)}</span>
         </div>
       </div>
 
@@ -65,19 +67,19 @@ export default function Invest() {
               </div>
               <div className="flex-1">
                  <h2 className="text-lg font-bold uppercase tracking-wide">Coin Factory</h2>
-                 <p className="text-zinc-500 text-xs mt-1">Earn coins passively every second, even offline!</p>
+                 <p className="text-zinc-500 text-xs mt-1">Earn coins passively every hour, even offline!</p>
               </div>
             </div>
             
             <div className="bg-zinc-950 rounded-xl p-4 border border-zinc-800 flex flex-col items-center">
                <span className="text-zinc-500 text-xs font-bold uppercase mb-2">Current Income</span>
                <div className="text-3xl font-black text-green-400 flex items-center gap-2">
-                 +{currentRate} <span className="text-sm text-green-500/70">/ sec</span>
+                 +{currentRate} <span className="text-sm text-green-500/70">/ hr</span>
                </div>
             </div>
 
             <div className="flex justify-between items-end mt-2">
-               <div className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Upgrade to +{currentRate + 1}/s</div>
+               <div className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Upgrade to +{currentRate + 1}/hr</div>
                <span className="text-zinc-600 font-bold uppercase text-[10px]">Level {investLevel} / {MAX_LEVEL}</span>
             </div>
 

@@ -178,7 +178,7 @@ export default function Game() {
         const earnedCoins = isWin ? Math.floor(Math.random() * 50) + 50 : Math.floor(Math.random() * 10) + 5;
         const earnedExp = isWin ? Math.floor(Math.random() * 100) + 100 : Math.floor(Math.random() * 20) + 10;
         
-        const currentCoins = parseInt(localStorage.getItem('game_coins') || '0', 10);
+        const currentCoins = parseFloat(localStorage.getItem('game_coins') || '0');
         const currentExp = parseInt(localStorage.getItem('game_exp') || '0', 10);
         
         const oldLevel = Math.floor(currentExp / 1000) + 1;

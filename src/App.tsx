@@ -72,13 +72,13 @@ export default function App() {
     let lastTime = parseInt(localStorage.getItem('game_last_time') || Date.now().toString(), 10);
     
     // Catch up on offline earnings
-    const incomeRate = parseInt(localStorage.getItem('game_passive_rate') || '0', 10);
+    const incomeRatePerHour = parseInt(localStorage.getItem('game_passive_rate') || '0', 10);
     const now = Date.now();
-    if (incomeRate > 0) {
+    if (incomeRatePerHour > 0) {
       const deltaSeconds = Math.floor((now - lastTime) / 1000);
       if (deltaSeconds > 0) {
-        const currentCoins = parseInt(localStorage.getItem('game_coins') || '0', 10);
-        localStorage.setItem('game_coins', (currentCoins + incomeRate * deltaSeconds).toString());
+        const currentCoins = parseFloat(localStorage.getItem('game_coins') || '0');
+        localStorage.setItem('game_coins', (currentCoins + (incomeRatePerHour * deltaSeconds) / 3600).toString());
         lastTime = now - ((now - lastTime) % 1000);
         localStorage.setItem('game_last_time', lastTime.toString());
       }
@@ -89,13 +89,13 @@ export default function App() {
 
     const interval = setInterval(() => {
       const currentNow = Date.now();
-      const currentRate = parseInt(localStorage.getItem('game_passive_rate') || '0', 10);
+      const currentRatePerHour = parseInt(localStorage.getItem('game_passive_rate') || '0', 10);
       
-      if (currentRate > 0) {
+      if (currentRatePerHour > 0) {
         const deltaSeconds = Math.floor((currentNow - lastTime) / 1000);
         if (deltaSeconds > 0) {
-           const currentCoins = parseInt(localStorage.getItem('game_coins') || '0', 10);
-           localStorage.setItem('game_coins', (currentCoins + currentRate * deltaSeconds).toString());
+           const currentCoins = parseFloat(localStorage.getItem('game_coins') || '0');
+           localStorage.setItem('game_coins', (currentCoins + (currentRatePerHour * deltaSeconds) / 3600).toString());
            lastTime = currentNow - ((currentNow - lastTime) % 1000);
            localStorage.setItem('game_last_time', lastTime.toString());
            window.dispatchEvent(new Event('coins_updated'));

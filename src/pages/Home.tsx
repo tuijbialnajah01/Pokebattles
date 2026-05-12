@@ -10,9 +10,9 @@ export default function Home() {
   
   useEffect(() => {
     const updateStats = () => {
-       const c = parseInt(localStorage.getItem('game_coins') || '0', 10);
+       const c = parseFloat(localStorage.getItem('game_coins') || '0');
        const e = parseInt(localStorage.getItem('game_exp') || '0', 10);
-       setStats({ coins: c, level: Math.floor(e / 1000) + 1, exp: e });
+       setStats({ coins: Math.floor(c), level: Math.floor(e / 1000) + 1, exp: e });
     };
     updateStats();
 
