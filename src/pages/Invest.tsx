@@ -40,6 +40,7 @@ export default function Invest() {
       localStorage.setItem('game_coins', newCoins.toString());
       localStorage.setItem('game_invest_level', newLevel.toString());
       localStorage.setItem('game_passive_rate', newRate.toString());
+      window.dispatchEvent(new Event('coins_updated'));
     }
   };
 

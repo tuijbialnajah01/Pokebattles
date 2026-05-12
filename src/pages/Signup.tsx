@@ -76,6 +76,7 @@ export default function Signup() {
         starter,
         coins: 0,
         exp: 0,
+        pokeballs: 10, // give 10 pokeballs initially so they can catch right away
         createdAt: new Date().toISOString()
       });
 
@@ -84,6 +85,7 @@ export default function Signup() {
       localStorage.setItem('game_unlocked', JSON.stringify([starter]));
       localStorage.setItem('game_coins', '0');
       localStorage.setItem('game_exp', '0');
+      localStorage.setItem('game_pokeballs_count', '10');
       
       navigate('/');
     } catch (err: any) {

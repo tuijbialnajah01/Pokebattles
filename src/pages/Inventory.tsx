@@ -45,6 +45,7 @@ export default function Inventory() {
   const handleSelect = (id: number) => {
     setSelectedId(id);
     localStorage.setItem('game_pokemon_id', id.toString());
+    window.dispatchEvent(new Event('coins_updated')); // trick Home into syncing
   };
 
   return (

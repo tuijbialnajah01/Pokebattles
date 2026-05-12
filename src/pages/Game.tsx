@@ -260,6 +260,8 @@ export default function Game() {
         localStorage.setItem('game_coins', (currentCoins + earnedCoins).toString());
         localStorage.setItem('game_exp', (currentExp + earnedExp).toString());
         
+        window.dispatchEvent(new Event('coins_updated'));
+
         if (isWin) {
             setShowCatchUI(true);
         }
@@ -767,6 +769,8 @@ export default function Game() {
         }
     } catch(e) {}
     
+    window.dispatchEvent(new Event('coins_updated'));
+
     setTimeout(() => {
        setShowCatchUI(false);
     }, 4000);

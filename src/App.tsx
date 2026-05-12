@@ -44,6 +44,7 @@ export default function App() {
            
            const investLevel = parseInt(localStorage.getItem('game_invest_level') || '0', 10);
            const passiveRate = parseInt(localStorage.getItem('game_passive_rate') || '0', 10);
+           const pokeballs = parseInt(localStorage.getItem('game_pokeballs_count') || '0', 10);
 
            const userRef = doc(db, 'users', username.toLowerCase());
            await updateDoc(userRef, {
@@ -51,6 +52,7 @@ export default function App() {
              exp,
              starter: pokemonId,
              unlocked: JSON.parse(unlockedStr),
+             pokeballs,
              speedLevel,
              attackLevel,
              healthLevel,

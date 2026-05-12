@@ -33,6 +33,7 @@ export default function Login() {
           if (userData.coins !== undefined) localStorage.setItem('game_coins', userData.coins.toString());
           if (userData.exp !== undefined) localStorage.setItem('game_exp', userData.exp.toString());
           if (userData.unlocked) localStorage.setItem('game_unlocked', JSON.stringify(userData.unlocked));
+          if (userData.pokeballs !== undefined) localStorage.setItem('game_pokeballs_count', userData.pokeballs.toString());
           
           if (userData.speedLevel !== undefined) localStorage.setItem('game_speed_level', userData.speedLevel.toString());
           if (userData.attackLevel !== undefined) localStorage.setItem('game_attack_level', userData.attackLevel.toString());
@@ -69,7 +70,7 @@ export default function Login() {
             <input 
               type="text" 
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
               className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 transition-colors"
               placeholder="trainer_red"
             />

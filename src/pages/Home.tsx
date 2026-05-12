@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Gamepad2, Play, Coins, Star, Zap, TrendingUp, LogOut, Swords, User, Map, Info } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { Play, Coins, Star, TrendingUp, LogOut, Map } from 'lucide-react';
+import { motion } from 'motion/react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -11,10 +13,33 @@ export default function Home() {
   const [pokemon, setPokemon] = useState<any>(null);
   
   useEffect(() => {
+    const syncToFirebase = async (username: string) => {
+      try {
+        const c = parseFloat(localStorage.getItem('game_coins') || '0');
+        const e = parseInt(localStorage.getItem('game_exp') || '0', 10);
+        const pb = parseInt(localStorage.getItem('game_pokeballs_count') || '0', 10);
+        const unlocked = JSON.parse(localStorage.getItem('game_unlocked') || '[]');
+        
+        await updateDoc(doc(db, 'users', username.toLowerCase()), {
+           coins: c,
+           exp: e,
+           pokeballs: pb,
+           unlocked: unlocked
+        });
+      } catch (err) {
+        console.error("Failed to sync to firebase (could be network out)", err);
+      }
+    };
+
     const updateStats = () => {
        const c = parseFloat(localStorage.getItem('game_coins') || '0');
        const e = parseInt(localStorage.getItem('game_exp') || '0', 10);
        setStats({ coins: Math.floor(c), level: Math.floor(e / 1000) + 1, exp: e });
+       
+       const storedUsername = localStorage.getItem('game_username');
+       if (storedUsername) {
+         syncToFirebase(storedUsername);
+       }
     };
     updateStats();
 

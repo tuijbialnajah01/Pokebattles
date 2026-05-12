@@ -50,6 +50,7 @@ export default function Shop() {
       if (unlocked.includes(item.id)) {
           localStorage.setItem('game_pokemon_id', item.id.toString());
           setSelectedId(item.id);
+          window.dispatchEvent(new Event('coins_updated'));
           return;
       }
       
@@ -65,6 +66,7 @@ export default function Shop() {
           // Auto select on unlock
           localStorage.setItem('game_pokemon_id', item.id.toString());
           setSelectedId(item.id);
+          window.dispatchEvent(new Event('coins_updated'));
       }
   };
 
@@ -76,6 +78,7 @@ export default function Shop() {
       setPokeballs(newBalls);
       localStorage.setItem('game_coins', newCoins.toString());
       localStorage.setItem('game_pokeballs_count', newBalls.toString());
+      window.dispatchEvent(new Event('coins_updated'));
     }
   };
 
